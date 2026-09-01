@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:1080px; height:1350px; overflow:hidden; }
+  body {
+    font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    padding: 72px 72px 64px;
+    display: flex; flex-direction: column;
+  }
+  /* ---- palettes ---- */
+  body[data-theme="0"] { --bg:#0B1120; --fg:#F8FAFC; --muted:#94A3B8; --accent:#38BDF8; --card:#111C33; }
+  body[data-theme="1"] { --bg:#FDF6E3; --fg:#1C1917; --muted:#78716C; --accent:#EA580C; --card:#F6ECD4; }
+  body[data-theme="2"] { --bg:#06231C; --fg:#ECFDF5; --muted:#84A79A; --accent:#34D399; --card:#0C3128; }
+  body[data-theme="3"] { --bg:#F4F4F5; --fg:#18181B; --muted:#71717A; --accent:#6D28D9; --card:#FFFFFF; }
+  body[data-theme="4"] { --bg:#1A0B2E; --fg:#FAF5FF; --muted:#A78BC4; --accent:#F472B6; --card:#2A1244; }
+
+  .kicker {
+    font-size:26px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+    color: var(--accent); margin-bottom:22px;
+  }
+  h1 { font-size:78px; line-height:1.04; font-weight:800; letter-spacing:-.02em; }
+  .hook { margin-top:24px; font-size:32px; line-height:1.35; color:var(--muted); font-weight:400; }
+  .rule { height:5px; width:120px; background:var(--accent); border-radius:99px; margin:38px 0 10px; }
+
+  .steps { flex:1; display:flex; flex-direction:column; justify-content:center; gap:20px; }
+
+  /* layout A: cards */
+  .steps[data-layout="cards"] .step {
+    background:var(--card); border-radius:22px; padding:26px 30px;
+    display:flex; gap:26px; align-items:flex-start;
+  }
+  .steps[data-layout="cards"] .num {
+    font-size:40px; font-weight:800; color:var(--accent); line-height:1; min-width:56px;
+  }
+
+  /* layout B: timeline */
+  .steps[data-layout="timeline"] .step {
+    display:flex; gap:26px; align-items:flex-start; padding:14px 0 14px 4px;
+    position:relative;
+  }
+  .steps[data-layout="timeline"] .num {
+    min-width:64px; height:64px; border-radius:50%;
+    border:4px solid var(--accent); color:var(--accent);
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px; font-weight:800;
+  }
+  .steps[data-layout="timeline"] .step:not(:last-child)::before {
+    content:""; position:absolute; left:35px; top:78px; bottom:-14px; width:4px;
+    background:var(--accent); opacity:.28;
+  }
+
+  .label { font-size:36px; font-weight:700; line-height:1.15; }
+  .text  { font-size:28px; line-height:1.4; color:var(--muted); margin-top:8px; }
+
+  footer {
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:24px; color:var(--muted); padding-top:28px;
+    border-top:2px solid color-mix(in srgb, var(--muted) 30%, transparent);
+  }
+  footer .field { color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:.14em; }
+</style>
+</head>
+<body>
+  <div class="kicker" id="kicker">How it works</div>
+  <h1 id="title"></h1>
+  <div class="hook" id="hook"></div>
+  <div class="rule"></div>
+  <div class="steps" id="steps"></div>
+  <footer>
+    <span class="field" id="field"></span>
+    <span id="handle"></span>
+  </footer>
+
+<script>
+  const DATA  = {{DATA}};
+  const THEME = {{THEME}};
+  const LAYOUT = {{LAYOUT}};
+  const HANDLE = {{HANDLE}};
+
+  document.body.dataset.theme = String(THEME);
+  document.getElementById("title").textContent = DATA.title;
+  document.getElementById("hook").textContent  = DATA.hook;
+  document.getElementById("field").textContent = DATA.field || "process";
+  document.getElementById("handle").textContent = HANDLE;
+
+  const steps = document.getElementById("steps");
+  steps.dataset.layout = LAYOUT;
+  for (const s of DATA.steps) {
+    const el = document.createElement("div");
+    el.className = "step";
+    el.innerHTML =
+      '<div class="num">' + s.n + '</div>' +
+      '<div><div class="label"></div><div class="text"></div></div>';
+    el.querySelector(".label").textContent = s.label;
+    el.querySelector(".text").textContent  = s.text;
+    steps.appendChild(el);
+  }
+
+  // Shrink the headline until the page stops overflowing.
+  (function fit() {
+    const h1 = document.getElementById("title");
+    let size = 78;
+    while (document.body.scrollHeight > 1350 && size > 44) {
+      size -= 2;
+      h1.style.fontSize = size + "px";
+    }
+  })();
+</script>
+</body>
+</html>

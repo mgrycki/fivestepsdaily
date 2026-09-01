@@ -1,0 +1,81 @@
+name: daily-post
+
+on:
+  schedule:
+    - cron: "0 7 * * *"        # 07:00 UTC = 09:00 PL (summer), 08:00 PL (winter)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generate and render only, publish nothing"
+        type: boolean
+        default: true
+      targets:
+        description: "Comma list of networks"
+        default: "facebook,instagram,x"
+
+permissions:
+  contents: write             # needed to commit data/used_topics.json back
+
+concurrency:
+  group: daily-post
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - run: python -m playwright install --with-deps chromium
+
+      - name: Run publisher
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          GRAPH_API_VERSION: ${{ vars.GRAPH_API_VERSION }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          PAGE_ACCESS_TOKEN: ${{ secrets.PAGE_ACCESS_TOKEN }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_REGION: ${{ vars.S3_REGION }}
+          PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
+          BRAND_HANDLE: ${{ vars.BRAND_HANDLE }}
+        run: |
+          python -m src.main \
+            ${{ inputs.dry_run && '--dry-run' || '' }} \
+            --targets "${{ inputs.targets || 'facebook,instagram,x' }}"
+
+      - name: Upload artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-${{ github.run_id }}
+          path: out/
+          retention-days: 14
+
+      - name: Commit used topics
+        if: success() && !inputs.dry_run
+        run: |
+          if git diff --quiet -- data/used_topics.json; then
+            echo "no change"; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/used_topics.json
+          git commit -m "chore: record published topic"
+          git push
