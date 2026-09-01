@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 from . import config
 
 LAYOUTS = ["cards", "flow"]
-THEMES = 5
+THEMES = 6
 
 
 def rotation(seed: str) -> tuple:

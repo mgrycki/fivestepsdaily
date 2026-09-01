@@ -77,17 +77,24 @@ python -m scripts.preview
 
 ## Design rotation
 
-`render.rotation()` hashes the title into one of 5 palettes × 2 layouts (`cards`, `flow`).
+`render.rotation()` hashes the title into one of 6 palettes × 2 layouts (`cards`, `flow`).
 Instagram throttles accounts that post a pixel-identical frame every day, so the deck never
-repeats back-to-back. All 10 combinations were rendered and checked for overflow.
+repeats back-to-back. All 12 combinations were rendered and checked for overflow.
+
+Every palette is light: a soft gradient background, two blurred colour washes behind the
+content, white cards, dark type, and a saturated accent paired with a second hue that
+alternates down the step column. Sky, coral, mint, lemon, lavender, rose.
 
 Add palettes by adding a `body[data-theme="N"]` block and bumping `THEMES` in `render.py`.
+A palette needs `--bg1/2/3`, `--fg`, `--muted`, `--accent`, `--accent2`, `--card`, `--tint`,
+`--wash1`, `--wash2`.
 Add icons by adding a key to `templates/icons.json` — the name is offered to the model
 automatically, no prompt edit needed.
 
 The layout auto-fits: the headline shrinks while the page overflows 1350px, then a scale
 variable grows the step block into whatever vertical space is left. Short and long copy
-both fill the frame.
+both fill the frame. Overflow is measured on the step block, not on `body` -- the decorative
+washes are `position: fixed` precisely so they stay out of that measurement.
 
 Override the rotation when testing:
 

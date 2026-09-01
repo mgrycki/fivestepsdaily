@@ -10,35 +10,70 @@
   html, body { width:1080px; height:1350px; overflow:hidden; }
   body {
     font-family: Inter, "Helvetica Neue", Arial, sans-serif;
-    background: var(--bg); color: var(--fg);
-    padding: 60px 62px 52px;
-    display:flex; flex-direction:column;
-    --s: 1;                       /* global step scale, tightened by fit() */
+    background: linear-gradient(155deg, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color: var(--fg);
+    padding: 58px 60px 50px;
+    display:flex; flex-direction:column; position:relative;
+    --s: 1;                       /* global step scale, tuned by fit() */
   }
-  body[data-theme="0"] { --bg:#0B1120; --fg:#F8FAFC; --muted:#94A3B8; --accent:#38BDF8; --card:#131F38; --tint:#16294a; }
-  body[data-theme="1"] { --bg:#FDF6E3; --fg:#1C1917; --muted:#78716C; --accent:#EA580C; --card:#F7EDD6; --tint:#FBE0CC; }
-  body[data-theme="2"] { --bg:#06231C; --fg:#ECFDF5; --muted:#84A79A; --accent:#34D399; --card:#0D3429; --tint:#124a39; }
-  body[data-theme="3"] { --bg:#F4F4F5; --fg:#18181B; --muted:#71717A; --accent:#6D28D9; --card:#FFFFFF; --tint:#EDE6FB; }
-  body[data-theme="4"] { --bg:#1A0B2E; --fg:#FAF5FF; --muted:#A78BC4; --accent:#F472B6; --card:#2B1345; --tint:#3D1B5C; }
+  /* Two soft colour washes so the frame never reads as a flat white slab. */
+  body::before, body::after { content:""; position:fixed; border-radius:50%; z-index:0;
+                              pointer-events:none; }
+  body::before { width:760px; height:760px; right:-260px; top:-300px;
+                 background:radial-gradient(circle closest-side, var(--wash1), transparent);
+                 opacity:.75; }
+  body::after  { width:640px; height:640px; left:-240px; bottom:-260px;
+                 background:radial-gradient(circle closest-side, var(--wash2), transparent);
+                 opacity:.7; }
+  body > * { position:relative; z-index:1; }
 
-  svg { display:block; fill:none; stroke:currentColor; stroke-width:1.7;
+  /* ---- palettes: all light, saturated accent, dark type ---- */
+  body[data-theme="0"] {   /* sky */
+    --bg1:#EAF6FF; --bg2:#F7FBFF; --bg3:#FFF6EC; --fg:#0B2239; --muted:#4C6379;
+    --accent:#0284C7; --accent2:#F97316; --card:#FFFFFF; --tint:#D7EDFB;
+    --wash1:#BFE4FA; --wash2:#FFD9B8; }
+  body[data-theme="1"] {   /* coral */
+    --bg1:#FFF0EA; --bg2:#FFF8F4; --bg3:#FFFCEB; --fg:#3A1408; --muted:#7C5346;
+    --accent:#EA4E1B; --accent2:#F5B700; --card:#FFFFFF; --tint:#FFDCCB;
+    --wash1:#FFC9AE; --wash2:#FFEBAF; }
+  body[data-theme="2"] {   /* mint */
+    --bg1:#E6FBF1; --bg2:#F5FEF9; --bg3:#EFFAFF; --fg:#06291F; --muted:#3F6B5C;
+    --accent:#059669; --accent2:#06B6D4; --card:#FFFFFF; --tint:#C4F1DE;
+    --wash1:#A9EFD3; --wash2:#B6EAF6; }
+  body[data-theme="3"] {   /* lemon */
+    --bg1:#FFF9E0; --bg2:#FFFDF2; --bg3:#FFF1F3; --fg:#332204; --muted:#7A6031;
+    --accent:#D97706; --accent2:#E11D48; --card:#FFFFFF; --tint:#FFECB8;
+    --wash1:#FFE08A; --wash2:#FFCBD5; }
+  body[data-theme="4"] {   /* lavender */
+    --bg1:#F0EBFF; --bg2:#FAF8FF; --bg3:#EAF7FF; --fg:#1E1440; --muted:#5B4E86;
+    --accent:#7C3AED; --accent2:#0EA5E9; --card:#FFFFFF; --tint:#E1D6FE;
+    --wash1:#CFBDFB; --wash2:#B9E5FA; }
+  body[data-theme="5"] {   /* rose */
+    --bg1:#FFECF3; --bg2:#FFF7FA; --bg3:#F3F0FF; --fg:#3A0C22; --muted:#84495F;
+    --accent:#DB2777; --accent2:#8B5CF6; --card:#FFFFFF; --tint:#FCD3E3;
+    --wash1:#FBB6D0; --wash2:#D6C7FB; }
+
+  svg { display:block; fill:none; stroke:currentColor; stroke-width:1.8;
         stroke-linecap:round; stroke-linejoin:round; }
 
-  .kicker { font-size:24px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
-            color:var(--accent); margin-bottom:18px; }
+  .kicker { display:inline-block; font-size:22px; font-weight:700; letter-spacing:.2em;
+            text-transform:uppercase; color:var(--accent); background:var(--tint);
+            padding:10px 20px; border-radius:99px; margin-bottom:20px; align-self:flex-start; }
   h1 { font-size:72px; line-height:1.04; font-weight:800; letter-spacing:-.022em; }
   .hook { margin-top:18px; font-size:29px; line-height:1.35; color:var(--muted); }
 
   /* process-at-a-glance strip: every stage as a glyph, left to right */
-  .strip { display:flex; align-items:center; gap:14px; margin:30px 0 8px;
-           padding:18px 20px; background:var(--card); border-radius:18px; }
-  .strip .node { width:52px; height:52px; border-radius:14px; background:var(--tint);
+  .strip { display:flex; align-items:center; gap:14px; margin:28px 0 6px;
+           padding:18px 20px; background:var(--card); border-radius:20px;
+           box-shadow:0 10px 26px -14px rgba(16,24,40,.35); }
+  .strip .node { width:54px; height:54px; border-radius:16px; background:var(--tint);
                  color:var(--accent); display:flex; align-items:center; justify-content:center; flex:none; }
+  .strip .node:nth-child(4n+3) { color:var(--accent2); }
   .strip .node svg { width:28px; height:28px; stroke-width:1.9; }
-  .strip .arrow { flex:1; height:2px; background:var(--muted); opacity:.35; position:relative; }
+  .strip .arrow { flex:1; height:2px; background:var(--accent); opacity:.4; position:relative; }
   .strip .arrow::after { content:""; position:absolute; right:-1px; top:-4px;
-                         border-left:8px solid var(--muted); border-top:5px solid transparent;
-                         border-bottom:5px solid transparent; opacity:.9; }
+                         border-left:8px solid var(--accent); border-top:5px solid transparent;
+                         border-bottom:5px solid transparent; }
 
   .steps { flex:1; display:flex; flex-direction:column; justify-content:center;
            gap: calc(var(--s) * 16px); }
@@ -50,9 +85,11 @@
           background:var(--tint); color:var(--accent);
           display:flex; align-items:center; justify-content:center; }
   .tile svg { width: calc(var(--s) * 50px); height: calc(var(--s) * 50px); }
+  .step:nth-child(even) .tile { color:var(--accent2); }
+  .step:nth-child(even) .tile .n { background:var(--accent2); }
   .tile .n { position:absolute; top: calc(var(--s) * -8px); left: calc(var(--s) * -8px);
              width: calc(var(--s) * 34px); height: calc(var(--s) * 34px); border-radius:50%;
-             background:var(--accent); color:var(--bg);
+             background:var(--accent); color:#fff; box-shadow:0 0 0 4px var(--bg2);
              font-size: calc(var(--s) * 19px); font-weight:800;
              display:flex; align-items:center; justify-content:center; }
 
@@ -61,8 +98,10 @@
            margin-top: calc(var(--s) * 7px); }
 
   /* layout "cards": each stage sits on its own panel */
-  .steps[data-layout="cards"] .step { background:var(--card); border-radius:22px;
-                                      padding: calc(var(--s) * 16px) calc(var(--s) * 22px); }
+  .steps[data-layout="cards"] { gap: calc(var(--s) * 11px); }
+  .steps[data-layout="cards"] .step { background:var(--card); border-radius:24px;
+                                      padding: calc(var(--s) * 13px) calc(var(--s) * 20px);
+                                      box-shadow:0 12px 28px -16px rgba(16,24,40,.4); }
   /* layout "flow": stages connected by a rail through the tiles */
   .steps[data-layout="flow"] .step { position:relative; }
   .steps[data-layout="flow"] .step:not(:last-child)::before {
@@ -72,7 +111,7 @@
 
   footer { display:flex; justify-content:space-between; align-items:center;
            font-size:22px; color:var(--muted); padding-top:22px; margin-top:16px;
-           border-top:2px solid color-mix(in srgb, var(--muted) 30%, transparent); }
+           border-top:2px solid color-mix(in srgb, var(--accent) 28%, transparent); }
   footer .field { color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:.14em; }
 </style>
 </head>
@@ -125,7 +164,10 @@
   // Fill the 1350px frame exactly: shrink whatever overflows, then grow into whatever is left.
   (function fit() {
     const h1 = document.getElementById("title");
-    const over = () => document.body.scrollHeight > 1350;
+    const steps = document.getElementById("steps");
+    // steps is the flex filler: scrollHeight is what the stages need, clientHeight what is left.
+    const over = () => document.body.scrollHeight > 1350
+                    || steps.scrollHeight > steps.clientHeight + 1;
     const setScale = v => document.body.style.setProperty("--s", v.toFixed(2));
 
     for (let size = 72; over() && size > 42; size -= 2) h1.style.fontSize = size + "px";
@@ -133,7 +175,7 @@
 
     if (!over()) {                       // short copy would otherwise leave a dead band
       let s = 1.0;
-      while (s < 1.45) {
+      while (s < 1.60) {
         const next = s + 0.02;
         setScale(next);
         if (over()) { setScale(s); break; }
