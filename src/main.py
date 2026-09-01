@@ -5,19 +5,20 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from . import config, generate, render, storage
+from . import config, generate, limits, render, storage
 from .publishers import facebook, instagram
 from .publishers import x as xpub
 
 
-def build_captions(data: dict) -> tuple:
-    tags = " ".join(data["hashtags"])
-    long_caption = f"{data['title']}\n\n{data['caption']}\n\n{tags}"
-    short = f"{data['title']} — {data['caption']}"
-    if len(short) > 240:
-        short = f"{data['title']} — {data['hook']}"
-    short = f"{short}\n\n{' '.join(data['hashtags'][:2])}"
-    return long_caption, short
+def build_captions(data: dict) -> dict:
+    """One body, three clamps. Each network gets as much text as it actually allows."""
+    body = f"{data['title']}\n\n{data['body']}"
+    x_limit = int(config.opt("X_CHAR_LIMIT", str(limits.X_LIMIT)))
+    return {
+        "facebook": limits.for_facebook(body, data["hashtags"]),
+        "instagram": limits.for_instagram(body, data["hashtags"]),
+        "x": limits.for_x(data["x_text"], x_limit),
+    }
 
 
 def main() -> int:
@@ -50,16 +51,18 @@ def main() -> int:
     render.render(data, local, handle=config.opt("BRAND_HANDLE", ""))
     print(f"[render] {local} ({os.path.getsize(local)} bytes)")
 
-    long_caption, short_caption = build_captions(data)
+    caps = build_captions(data)
     with open(os.path.join(config.OUT_DIR, "payload.json"), "w") as f:
-        json.dump({"data": data, "caption": long_caption, "short": short_caption}, f,
-                  indent=2, ensure_ascii=False)
+        json.dump({"data": data, "captions": caps}, f, indent=2, ensure_ascii=False)
+
+    print(f"[text] fb={len(caps['facebook'])}/{limits.FB_LIMIT} "
+          f"ig={len(caps['instagram'])}/{limits.IG_LIMIT} "
+          f"x={limits.x_weight(caps['x'])} weighted")
 
     if args.dry_run:
         print("\n--- DRY RUN, nothing published ---")
-        print(json.dumps(data, indent=2, ensure_ascii=False))
-        print("\nFB/IG caption:\n" + long_caption)
-        print("\nX text:\n" + short_caption)
+        for net in ("facebook", "instagram", "x"):
+            print(f"\n===== {net.upper()} =====\n{caps[net]}")
         return 0
 
     image_url = storage.upload(local, f"posts/{stamp}/{slug}.jpg")
@@ -68,17 +71,17 @@ def main() -> int:
     results, failures = {}, []
     if "facebook" in targets:
         try:
-            results["facebook"] = facebook.publish(image_url, long_caption)
+            results["facebook"] = facebook.publish(image_url, caps["facebook"])
         except Exception as e:  # one dead network must not block the others
             failures.append(f"facebook: {e}")
     if "instagram" in targets:
         try:
-            results["instagram"] = instagram.publish(image_url, long_caption)
+            results["instagram"] = instagram.publish(image_url, caps["instagram"])
         except Exception as e:
             failures.append(f"instagram: {e}")
     if "x" in targets:
         try:
-            results["x"] = xpub.publish(local, short_caption)
+            results["x"] = xpub.publish(local, caps["x"])
         except Exception as e:
             failures.append(f"x: {e}")
 

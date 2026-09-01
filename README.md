@@ -6,14 +6,29 @@ Daily autonomous poster: Claude researches one interesting *process*, renders it
 Fully automatic — no human approval step. If that turns out to be too spicy, the place to
 add a gate is between `storage.upload` and the publisher calls in `src/main.py`.
 
+## What gets published
+
+- **Text**: one long body written to fill the platform limit, not a one-liner.
+  `src/limits.py` clamps it per network — Instagram 2200 chars / 30 hashtags,
+  Facebook 63206, X 280 using X's own weighted count (Latin 1, everything else 2).
+  Trimming happens on a word boundary and hashtags are reserved first, so the body
+  absorbs the cut and the tags always survive.
+- **Image**: a 1080×1350 JPEG carrying the whole process — a glyph strip across the top
+  showing all five stages left to right, then five tiles, each with its own icon,
+  a numbered badge, a label and a line of detail. Icons come from a 65-glyph local SVG
+  set (`templates/icons.json`); the model picks one name per stage from that fixed list
+  and anything unrecognised falls back to `gear`.
+
 ## Flow
 
 ```
 cron 07:00 UTC
-  └─ generate.py   Claude + web_search → brief → JSON (title, hook, 5 steps, caption, tags)
+  └─ generate.py   Claude + web_search → brief → JSON (title, hook, 5 steps + icons,
+     │                                                 body, x_text, tags, sources)
      └─ dedupe     data/used_topics.json, slug match
         └─ render.py    templates/template.html → Playwright → out/YYYYMMDD-slug.jpg
            └─ storage.py  → R2/S3 → public https URL (IG requires image_url, not upload)
+              └─ limits.py    one body → three clamped captions
               ├─ facebook.py    POST /{page-id}/photos
               ├─ instagram.py   POST /media → poll status → POST /media_publish
               └─ x.py           OAuth1 media_upload + v2 create_tweet
@@ -62,9 +77,23 @@ python -m scripts.preview
 
 ## Design rotation
 
-`render.rotation()` hashes the title into one of 5 palettes × 2 layouts. Instagram throttles
-accounts that post a pixel-identical frame every day, so the deck never repeats back-to-back.
+`render.rotation()` hashes the title into one of 5 palettes × 2 layouts (`cards`, `flow`).
+Instagram throttles accounts that post a pixel-identical frame every day, so the deck never
+repeats back-to-back. All 10 combinations were rendered and checked for overflow.
+
 Add palettes by adding a `body[data-theme="N"]` block and bumping `THEMES` in `render.py`.
+Add icons by adding a key to `templates/icons.json` — the name is offered to the model
+automatically, no prompt edit needed.
+
+The layout auto-fits: the headline shrinks while the page overflows 1350px, then a scale
+variable grows the step block into whatever vertical space is left. Short and long copy
+both fill the frame.
+
+Override the rotation when testing:
+
+```python
+render.render(data, "out/test.jpg", theme=3, layout="cards")
+```
 
 ## Failure modes
 

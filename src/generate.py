@@ -8,6 +8,8 @@ import anthropic
 
 from . import config
 
+ICON_NAMES = sorted(json.load(open(os.path.join(config.ROOT, "templates", "icons.json"))).keys())
+
 RESEARCH_PROMPT = """Find ONE genuinely interesting *process* worth explaining in 5 steps.
 Any field: AI, medicine, IT, biology, logistics, materials, energy, space.
 
@@ -17,8 +19,9 @@ Hard requirements:
 - Do NOT pick any of these already-used topics: {used}
 
 Use web search to verify the process is real and get the stages right.
-Then write a short factual brief: the title, what it is, and the 5 stages in order.
-Cite the sources you used.
+Then write a detailed factual brief: the title, why it matters, the 5 stages in order with
+what physically happens at each one, one concrete number or fact per stage where you have
+one, and what the current open problem or limitation is. Cite the sources you used.
 """
 
 FORMAT_PROMPT = """Turn this brief into a social-media post payload.
@@ -29,15 +32,31 @@ BRIEF:
 Return ONLY a JSON object, no prose, no markdown fences, with exactly this shape:
 {{
   "title": "max 45 chars, no trailing period",
-  "hook": "one sentence, max 90 chars",
-  "steps": [{{"n": 1, "label": "3-5 words", "text": "max 12 words"}}],
-  "caption": "120-180 chars, plain text, no hashtags inside",
-  "hashtags": ["#one", "#two", "#three", "#four", "#five"],
-  "field": "one word domain, e.g. biology",
+  "hook": "one sentence, max 95 chars",
+  "field": "one lowercase word, e.g. biology",
+  "steps": [
+    {{"n": 1, "label": "3-5 words", "text": "max 80 chars, what physically happens",
+      "icon": "one name from the icon list"}}
+  ],
+  "body": "{body_min}-{body_max} characters. This is the post text itself, so write it in full: "
+          "open with the hook, walk through all 5 stages in prose with the concrete numbers, "
+          "close with the open problem and why it matters. Plain text. Blank lines between "
+          "paragraphs are fine. No hashtags, no markdown, no links.",
+  "x_text": "max 230 characters, standalone, must make sense with no image and no thread",
+  "hashtags": ["#one", "..."],
   "sources": ["https://..."]
 }}
-Exactly 5 steps, numbered 1..5. Hashtags: 3-6 items, each starts with #.
+
+Rules:
+- Exactly 5 steps, numbered 1..5.
+- "body" MUST be at least {body_min} characters. Use the full length; do not summarise.
+- 6-12 hashtags, each starting with #, lowercase, no spaces inside.
+- "icon" MUST be chosen from this list, pick the closest match for that stage:
+{icons}
 """
+
+BODY_MIN = 900
+BODY_MAX = 2000
 
 
 def slug(s: str) -> str:
@@ -64,16 +83,24 @@ def _text(msg) -> str:
 
 
 def validate(d: dict) -> dict:
-    for k in ("title", "hook", "steps", "caption", "hashtags"):
+    for k in ("title", "hook", "steps", "body", "x_text", "hashtags"):
         if k not in d:
             raise ValueError(f"missing key: {k}")
     if len(d["steps"]) != 5:
         raise ValueError(f"expected 5 steps, got {len(d['steps'])}")
+    if len(d["body"]) < BODY_MIN:
+        # Retrying is cheaper than publishing a thin post into a 2200-char slot.
+        raise ValueError(f"body too short: {len(d['body'])} < {BODY_MIN}")
     for i, s in enumerate(d["steps"], 1):
         s["n"] = i
         s["label"] = str(s["label"]).strip()
         s["text"] = str(s["text"]).strip()
-    d["hashtags"] = [h if h.startswith("#") else "#" + h for h in d["hashtags"]][:6]
+        icon = str(s.get("icon", "")).strip().lower()
+        s["icon"] = icon if icon in ICON_NAMES else "gear"  # render falls back anyway
+    d["hashtags"] = [
+        re.sub(r"\s+", "", h if h.startswith("#") else "#" + h) for h in d["hashtags"]
+    ][:12]
+    d["sources"] = d.get("sources", [])
     return d
 
 
@@ -84,7 +111,7 @@ def generate(retries: int = 3) -> dict:
 
     research = client.messages.create(
         model=config.ANTHROPIC_MODEL,
-        max_tokens=2000,
+        max_tokens=3000,
         tools=[{"type": config.WEB_SEARCH_TOOL, "name": "web_search", "max_uses": 6}],
         messages=[{"role": "user", "content": RESEARCH_PROMPT.format(used=json.dumps(used_titles))}],
     )
@@ -92,14 +119,17 @@ def generate(retries: int = 3) -> dict:
     if not brief:
         raise RuntimeError("research call returned no text")
 
+    prompt = FORMAT_PROMPT.format(
+        brief=brief, icons=", ".join(ICON_NAMES), body_min=BODY_MIN, body_max=BODY_MAX
+    )
     last_err = None
     for _ in range(retries):
         # Prefill "{" forces raw JSON. No tools on this call, so prefill is allowed.
         msg = client.messages.create(
             model=config.ANTHROPIC_MODEL,
-            max_tokens=1200,
+            max_tokens=3000,
             messages=[
-                {"role": "user", "content": FORMAT_PROMPT.format(brief=brief)},
+                {"role": "user", "content": prompt},
                 {"role": "assistant", "content": "{"},
             ],
         )

@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 
 from . import config
 
-LAYOUTS = ["cards", "timeline"]
+LAYOUTS = ["cards", "flow"]
 THEMES = 5
 
 
@@ -17,11 +17,16 @@ def rotation(seed: str) -> tuple:
     return h % THEMES, LAYOUTS[(h >> 8) % len(LAYOUTS)]
 
 
-def render(data: dict, out_path: str, handle: str = "") -> str:
-    theme, layout = rotation(data["title"])
+def render(data: dict, out_path: str, handle: str = "",
+           theme: int = None, layout: str = None) -> str:
+    auto_theme, auto_layout = rotation(data["title"])
+    theme = auto_theme if theme is None else theme
+    layout = auto_layout if layout is None else layout
     html = open(config.TEMPLATE, encoding="utf-8").read()
+    icons = open(config.ICONS, encoding="utf-8").read()
     html = (
         html.replace("{{DATA}}", json.dumps(data, ensure_ascii=False))
+        .replace("{{ICONS}}", icons)
         .replace("{{THEME}}", str(theme))
         .replace("{{LAYOUT}}", json.dumps(layout))
         .replace("{{HANDLE}}", json.dumps(handle))

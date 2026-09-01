@@ -3,16 +3,6 @@ import tweepy
 
 from .. import config
 
-LIMIT = 280
-
-
-def _fit(text: str) -> str:
-    # A tweet with media still costs the full text length; the media itself is free.
-    if len(text) <= LIMIT:
-        return text
-    return text[: LIMIT - 1].rsplit(" ", 1)[0] + "…"
-
-
 def publish(image_path: str, text: str) -> str:
     ck = config.req("X_CONSUMER_KEY")
     cs = config.req("X_CONSUMER_SECRET")
@@ -26,5 +16,5 @@ def publish(image_path: str, text: str) -> str:
         consumer_key=ck, consumer_secret=cs,
         access_token=at, access_token_secret=ats,
     )
-    resp = client.create_tweet(text=_fit(text), media_ids=[media_id])
+    resp = client.create_tweet(text=text, media_ids=[media_id])
     return str(resp.data["id"])

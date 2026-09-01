@@ -4,67 +4,75 @@
 <meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body { width:1080px; height:1350px; overflow:hidden; }
   body {
     font-family: Inter, "Helvetica Neue", Arial, sans-serif;
-    background: var(--bg);
-    color: var(--fg);
-    padding: 72px 72px 64px;
-    display: flex; flex-direction: column;
+    background: var(--bg); color: var(--fg);
+    padding: 60px 62px 52px;
+    display:flex; flex-direction:column;
+    --s: 1;                       /* global step scale, tightened by fit() */
   }
-  /* ---- palettes ---- */
-  body[data-theme="0"] { --bg:#0B1120; --fg:#F8FAFC; --muted:#94A3B8; --accent:#38BDF8; --card:#111C33; }
-  body[data-theme="1"] { --bg:#FDF6E3; --fg:#1C1917; --muted:#78716C; --accent:#EA580C; --card:#F6ECD4; }
-  body[data-theme="2"] { --bg:#06231C; --fg:#ECFDF5; --muted:#84A79A; --accent:#34D399; --card:#0C3128; }
-  body[data-theme="3"] { --bg:#F4F4F5; --fg:#18181B; --muted:#71717A; --accent:#6D28D9; --card:#FFFFFF; }
-  body[data-theme="4"] { --bg:#1A0B2E; --fg:#FAF5FF; --muted:#A78BC4; --accent:#F472B6; --card:#2A1244; }
+  body[data-theme="0"] { --bg:#0B1120; --fg:#F8FAFC; --muted:#94A3B8; --accent:#38BDF8; --card:#131F38; --tint:#16294a; }
+  body[data-theme="1"] { --bg:#FDF6E3; --fg:#1C1917; --muted:#78716C; --accent:#EA580C; --card:#F7EDD6; --tint:#FBE0CC; }
+  body[data-theme="2"] { --bg:#06231C; --fg:#ECFDF5; --muted:#84A79A; --accent:#34D399; --card:#0D3429; --tint:#124a39; }
+  body[data-theme="3"] { --bg:#F4F4F5; --fg:#18181B; --muted:#71717A; --accent:#6D28D9; --card:#FFFFFF; --tint:#EDE6FB; }
+  body[data-theme="4"] { --bg:#1A0B2E; --fg:#FAF5FF; --muted:#A78BC4; --accent:#F472B6; --card:#2B1345; --tint:#3D1B5C; }
 
-  .kicker {
-    font-size:26px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
-    color: var(--accent); margin-bottom:22px;
-  }
-  h1 { font-size:78px; line-height:1.04; font-weight:800; letter-spacing:-.02em; }
-  .hook { margin-top:24px; font-size:32px; line-height:1.35; color:var(--muted); font-weight:400; }
-  .rule { height:5px; width:120px; background:var(--accent); border-radius:99px; margin:38px 0 10px; }
+  svg { display:block; fill:none; stroke:currentColor; stroke-width:1.7;
+        stroke-linecap:round; stroke-linejoin:round; }
 
-  .steps { flex:1; display:flex; flex-direction:column; justify-content:center; gap:20px; }
+  .kicker { font-size:24px; font-weight:600; letter-spacing:.22em; text-transform:uppercase;
+            color:var(--accent); margin-bottom:18px; }
+  h1 { font-size:72px; line-height:1.04; font-weight:800; letter-spacing:-.022em; }
+  .hook { margin-top:18px; font-size:29px; line-height:1.35; color:var(--muted); }
 
-  /* layout A: cards */
-  .steps[data-layout="cards"] .step {
-    background:var(--card); border-radius:22px; padding:26px 30px;
-    display:flex; gap:26px; align-items:flex-start;
-  }
-  .steps[data-layout="cards"] .num {
-    font-size:40px; font-weight:800; color:var(--accent); line-height:1; min-width:56px;
-  }
+  /* process-at-a-glance strip: every stage as a glyph, left to right */
+  .strip { display:flex; align-items:center; gap:14px; margin:30px 0 8px;
+           padding:18px 20px; background:var(--card); border-radius:18px; }
+  .strip .node { width:52px; height:52px; border-radius:14px; background:var(--tint);
+                 color:var(--accent); display:flex; align-items:center; justify-content:center; flex:none; }
+  .strip .node svg { width:28px; height:28px; stroke-width:1.9; }
+  .strip .arrow { flex:1; height:2px; background:var(--muted); opacity:.35; position:relative; }
+  .strip .arrow::after { content:""; position:absolute; right:-1px; top:-4px;
+                         border-left:8px solid var(--muted); border-top:5px solid transparent;
+                         border-bottom:5px solid transparent; opacity:.9; }
 
-  /* layout B: timeline */
-  .steps[data-layout="timeline"] .step {
-    display:flex; gap:26px; align-items:flex-start; padding:14px 0 14px 4px;
-    position:relative;
-  }
-  .steps[data-layout="timeline"] .num {
-    min-width:64px; height:64px; border-radius:50%;
-    border:4px solid var(--accent); color:var(--accent);
-    display:flex; align-items:center; justify-content:center;
-    font-size:30px; font-weight:800;
-  }
-  .steps[data-layout="timeline"] .step:not(:last-child)::before {
-    content:""; position:absolute; left:35px; top:78px; bottom:-14px; width:4px;
-    background:var(--accent); opacity:.28;
-  }
+  .steps { flex:1; display:flex; flex-direction:column; justify-content:center;
+           gap: calc(var(--s) * 16px); }
+  .step { display:flex; gap: calc(var(--s) * 24px); align-items:center; }
 
-  .label { font-size:36px; font-weight:700; line-height:1.15; }
-  .text  { font-size:28px; line-height:1.4; color:var(--muted); margin-top:8px; }
+  .tile { position:relative; flex:none;
+          width: calc(var(--s) * 96px); height: calc(var(--s) * 96px);
+          border-radius: calc(var(--s) * 24px);
+          background:var(--tint); color:var(--accent);
+          display:flex; align-items:center; justify-content:center; }
+  .tile svg { width: calc(var(--s) * 50px); height: calc(var(--s) * 50px); }
+  .tile .n { position:absolute; top: calc(var(--s) * -8px); left: calc(var(--s) * -8px);
+             width: calc(var(--s) * 34px); height: calc(var(--s) * 34px); border-radius:50%;
+             background:var(--accent); color:var(--bg);
+             font-size: calc(var(--s) * 19px); font-weight:800;
+             display:flex; align-items:center; justify-content:center; }
 
-  footer {
-    display:flex; justify-content:space-between; align-items:center;
-    font-size:24px; color:var(--muted); padding-top:28px;
-    border-top:2px solid color-mix(in srgb, var(--muted) 30%, transparent);
-  }
+  .label { font-size: calc(var(--s) * 34px); font-weight:700; line-height:1.15; }
+  .text  { font-size: calc(var(--s) * 26px); line-height:1.4; color:var(--muted);
+           margin-top: calc(var(--s) * 7px); }
+
+  /* layout "cards": each stage sits on its own panel */
+  .steps[data-layout="cards"] .step { background:var(--card); border-radius:22px;
+                                      padding: calc(var(--s) * 16px) calc(var(--s) * 22px); }
+  /* layout "flow": stages connected by a rail through the tiles */
+  .steps[data-layout="flow"] .step { position:relative; }
+  .steps[data-layout="flow"] .step:not(:last-child)::before {
+    content:""; position:absolute; left: calc(var(--s) * 48px);
+    top: calc(100% - var(--s) * 6px); height: calc(var(--s) * 28px);
+    width:3px; background:var(--accent); opacity:.3; }
+
+  footer { display:flex; justify-content:space-between; align-items:center;
+           font-size:22px; color:var(--muted); padding-top:22px; margin-top:16px;
+           border-top:2px solid color-mix(in srgb, var(--muted) 30%, transparent); }
   footer .field { color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:.14em; }
 </style>
 </head>
@@ -72,7 +80,7 @@
   <div class="kicker" id="kicker">How it works</div>
   <h1 id="title"></h1>
   <div class="hook" id="hook"></div>
-  <div class="rule"></div>
+  <div class="strip" id="strip"></div>
   <div class="steps" id="steps"></div>
   <footer>
     <span class="field" id="field"></span>
@@ -80,16 +88,26 @@
   </footer>
 
 <script>
-  const DATA  = {{DATA}};
-  const THEME = {{THEME}};
+  const DATA   = {{DATA}};
+  const ICONS  = {{ICONS}};
+  const THEME  = {{THEME}};
   const LAYOUT = {{LAYOUT}};
   const HANDLE = {{HANDLE}};
+  const FALLBACK = "gear";
+
+  const glyph = name => '<svg viewBox="0 0 24 24">' + (ICONS[name] || ICONS[FALLBACK]) + '</svg>';
 
   document.body.dataset.theme = String(THEME);
-  document.getElementById("title").textContent = DATA.title;
-  document.getElementById("hook").textContent  = DATA.hook;
-  document.getElementById("field").textContent = DATA.field || "process";
+  document.getElementById("title").textContent  = DATA.title;
+  document.getElementById("hook").textContent   = DATA.hook;
+  document.getElementById("field").textContent  = DATA.field || "process";
   document.getElementById("handle").textContent = HANDLE;
+
+  const strip = document.getElementById("strip");
+  DATA.steps.forEach((s, i) => {
+    if (i) strip.insertAdjacentHTML("beforeend", '<div class="arrow"></div>');
+    strip.insertAdjacentHTML("beforeend", '<div class="node">' + glyph(s.icon) + '</div>');
+  });
 
   const steps = document.getElementById("steps");
   steps.dataset.layout = LAYOUT;
@@ -97,20 +115,30 @@
     const el = document.createElement("div");
     el.className = "step";
     el.innerHTML =
-      '<div class="num">' + s.n + '</div>' +
+      '<div class="tile"><div class="n">' + s.n + '</div>' + glyph(s.icon) + '</div>' +
       '<div><div class="label"></div><div class="text"></div></div>';
     el.querySelector(".label").textContent = s.label;
     el.querySelector(".text").textContent  = s.text;
     steps.appendChild(el);
   }
 
-  // Shrink the headline until the page stops overflowing.
+  // Fill the 1350px frame exactly: shrink whatever overflows, then grow into whatever is left.
   (function fit() {
     const h1 = document.getElementById("title");
-    let size = 78;
-    while (document.body.scrollHeight > 1350 && size > 44) {
-      size -= 2;
-      h1.style.fontSize = size + "px";
+    const over = () => document.body.scrollHeight > 1350;
+    const setScale = v => document.body.style.setProperty("--s", v.toFixed(2));
+
+    for (let size = 72; over() && size > 42; size -= 2) h1.style.fontSize = size + "px";
+    for (let s = 1.0; over() && s > 0.70; s -= 0.02) setScale(s);
+
+    if (!over()) {                       // short copy would otherwise leave a dead band
+      let s = 1.0;
+      while (s < 1.45) {
+        const next = s + 0.02;
+        setScale(next);
+        if (over()) { setScale(s); break; }
+        s = next;
+      }
     }
   })();
 </script>

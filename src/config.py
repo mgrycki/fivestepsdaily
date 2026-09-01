@@ -34,4 +34,5 @@ TARGETS = [t.strip().lower() for t in opt("TARGETS", "facebook,instagram,x").spl
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 USED_TOPICS = os.path.join(ROOT, "data", "used_topics.json")
 TEMPLATE = os.path.join(ROOT, "templates", "template.html")
+ICONS = os.path.join(ROOT, "templates", "icons.json")
 OUT_DIR = os.path.join(ROOT, "out")
