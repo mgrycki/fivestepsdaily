@@ -47,12 +47,43 @@ SAMPLE = {
               "mRNA -- it's the four lipids wrapped around it.",
     "hashtags": ["#biotech", "#mrna", "#vaccines", "#science", "#process", "#biology", "#pharma"],
     "sources": ["https://example.org/mrna"],
+    "stats": [
+        {"value": "30 L", "label": "one reactor run covers millions of doses"},
+        {"value": "-70C", "label": "storage the first lipid formulations needed"},
+        {"value": "~1 yr", "label": "down from a decade for a conventional vaccine"},
+    ],
+    "quote": {"text": "The mRNA is the easy part. The delivery system is the hard part.",
+              "who": "Drew Weissman, University of Pennsylvania"},
+    "art": "a laboratory bioreactor vessel with coiled tubing and floating molecule shapes",
 }
+
+
+def placeholder_art() -> bytes:
+    """Stand-in for the generated illustration, so the layout can be checked with no API key."""
+    from playwright.sync_api import sync_playwright
+    svg = """<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400' width='400' height='400'>
+      <circle cx='200' cy='200' r='150' fill='#0284C7' opacity='.14'/>
+      <rect x='140' y='96' width='120' height='210' rx='46' fill='#0284C7'/>
+      <rect x='140' y='210' width='120' height='96' rx='30' fill='#0369A1'/>
+      <rect x='176' y='60' width='48' height='44' rx='12' fill='#F97316'/>
+      <circle cx='200' cy='170' r='30' fill='#FFF' opacity='.9'/>
+      <circle cx='96' cy='140' r='26' fill='#F97316'/>
+      <circle cx='312' cy='260' r='34' fill='#F97316' opacity='.85'/>
+      <circle cx='320' cy='120' r='16' fill='#0284C7'/>
+      <path d='M78 300h244' stroke='#0284C7' stroke-width='12' stroke-linecap='round' fill='none'/>
+    </svg>"""
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        pg = b.new_page(viewport={"width": 400, "height": 400}, device_scale_factor=2)
+        pg.set_content(f"<style>html,body{{margin:0;background:transparent}}</style>{svg}")
+        png = pg.screenshot(type="png", omit_background=True)
+        b.close()
+    return png
 
 if __name__ == "__main__":
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out = os.path.join(root, "out", "preview.jpg")
-    print(render.render(SAMPLE, out, handle="@yourhandle"))
+    print(render.render(SAMPLE, out, handle="@yourhandle", art=placeholder_art()))
     caps = {
         "facebook": limits.for_facebook(f"{SAMPLE['title']}\n\n{SAMPLE['body']}", SAMPLE["hashtags"]),
         "instagram": limits.for_instagram(f"{SAMPLE['title']}\n\n{SAMPLE['body']}", SAMPLE["hashtags"]),

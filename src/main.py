@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from . import config, generate, limits, render, storage
+from . import config, generate, illustrate, limits, render, storage
 from .publishers import facebook, instagram
 from .publishers import x as xpub
 
@@ -29,6 +29,8 @@ def main() -> int:
                     help="comma list: facebook,instagram,x")
     ap.add_argument("--attempts", type=int, default=3,
                     help="how many topics to try before giving up on dedupe")
+    ap.add_argument("--no-art", action="store_true",
+                    help="skip illustration generation (no image-provider spend)")
     args = ap.parse_args()
     targets = [t.strip().lower() for t in args.targets.split(",") if t.strip()]
 
@@ -48,7 +50,18 @@ def main() -> int:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
     slug = generate.slug(data["title"])[:60]
     local = os.path.join(config.OUT_DIR, f"{stamp}-{slug}.jpg")
-    render.render(data, local, handle=config.opt("BRAND_HANDLE", ""))
+
+    theme, _ = render.rotation(data["title"])
+    art = None
+    if not args.no_art:
+        # Palette-matched so the illustration belongs to today's frame, not to a stock set.
+        art = illustrate.generate(data, *render.ACCENTS[theme])
+        if art:
+            with open(os.path.join(config.OUT_DIR, f"{stamp}-{slug}-art.png"), "wb") as f:
+                f.write(art)
+    print(f"[art] {'generated' if art else 'none, icon-only frame'}")
+
+    render.render(data, local, handle=config.opt("BRAND_HANDLE", ""), art=art)
     print(f"[render] {local} ({os.path.getsize(local)} bytes)")
 
     caps = build_captions(data)

@@ -19,9 +19,17 @@ Hard requirements:
 - Do NOT pick any of these already-used topics: {used}
 
 Use web search to verify the process is real and get the stages right.
-Then write a detailed factual brief: the title, why it matters, the 5 stages in order with
-what physically happens at each one, one concrete number or fact per stage where you have
-one, and what the current open problem or limitation is. Cite the sources you used.
+Then write a detailed factual brief containing:
+- the title and why it matters
+- the 5 stages in order, with what physically happens at each one
+- HARD NUMBERS: at least three concrete, verifiable figures (percentages, counts, durations,
+  temperatures, costs). These are the headline statistics of the post, so they must be real
+  and traceable to a source, never estimated or rounded from nothing.
+- one short direct quote from a named researcher, engineer or institution, if the sources
+  contain one. If none of your sources has a usable quote, say so explicitly instead of
+  inventing one.
+- the current open problem or limitation
+Cite the sources you used.
 """
 
 FORMAT_PROMPT = """Turn this brief into a social-media post payload.
@@ -38,6 +46,11 @@ Return ONLY a JSON object, no prose, no markdown fences, with exactly this shape
     {{"n": 1, "label": "3-5 words", "text": "max 80 chars, what physically happens",
       "icon": "one name from the icon list"}}
   ],
+  "stats": [{{"value": "98.5%", "label": "max 45 chars, what the number measures"}}],
+  "quote": {{"text": "max 110 chars, verbatim from a source", "who": "name, role or institution"}},
+  "art": "one sentence describing a single illustration subject for this process. Concrete and "
+         "visual, e.g. 'a laboratory bioreactor vessel with coiled tubing and floating molecule "
+         "shapes around it'. No text or labels in the scene.",
   "body": "{body_min}-{body_max} characters. This is the post text itself, so write it in full: "
           "open with the hook, walk through all 5 stages in prose with the concrete numbers, "
           "close with the open problem and why it matters. Plain text. Blank lines between "
@@ -49,6 +62,10 @@ Return ONLY a JSON object, no prose, no markdown fences, with exactly this shape
 
 Rules:
 - Exactly 5 steps, numbered 1..5.
+- 3 stats. "value" is short and punchy (max 7 chars, e.g. "98.5%", "30 L", "-70C"). Every one
+  must come from the brief -- do not invent or re-round figures.
+- "quote" must be verbatim from the brief. If the brief has no usable quote, set it to null.
+  Never fabricate a quote or an attribution.
 - "body" MUST be at least {body_min} characters. Use the full length; do not summarise.
 - 6-12 hashtags, each starting with #, lowercase, no spaces inside.
 - "icon" MUST be chosen from this list, pick the closest match for that stage:
@@ -83,7 +100,7 @@ def _text(msg) -> str:
 
 
 def validate(d: dict) -> dict:
-    for k in ("title", "hook", "steps", "body", "x_text", "hashtags"):
+    for k in ("title", "hook", "steps", "body", "x_text", "hashtags", "stats"):
         if k not in d:
             raise ValueError(f"missing key: {k}")
     if len(d["steps"]) != 5:
@@ -97,6 +114,23 @@ def validate(d: dict) -> dict:
         s["text"] = str(s["text"]).strip()
         icon = str(s.get("icon", "")).strip().lower()
         s["icon"] = icon if icon in ICON_NAMES else "gear"  # render falls back anyway
+    stats = []
+    for st in d.get("stats", []):
+        value, label = str(st.get("value", "")).strip(), str(st.get("label", "")).strip()
+        if value and label:
+            stats.append({"value": value[:8], "label": label})
+    if len(stats) < 2:
+        raise ValueError(f"need at least 2 usable stats, got {len(stats)}")
+    d["stats"] = stats[:3]
+
+    q = d.get("quote")
+    # A fabricated quote is worse than no quote, so anything malformed is dropped outright.
+    if isinstance(q, dict) and str(q.get("text", "")).strip() and str(q.get("who", "")).strip():
+        d["quote"] = {"text": str(q["text"]).strip().strip('"“”'), "who": str(q["who"]).strip()}
+    else:
+        d["quote"] = None
+
+    d["art"] = str(d.get("art", "")).strip()
     d["hashtags"] = [
         re.sub(r"\s+", "", h if h.startswith("#") else "#" + h) for h in d["hashtags"]
     ][:12]

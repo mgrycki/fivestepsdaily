@@ -13,18 +13,38 @@ add a gate is between `storage.upload` and the publisher calls in `src/main.py`.
   Facebook 63206, X 280 using X's own weighted count (Latin 1, everything else 2).
   Trimming happens on a word boundary and hashtags are reserved first, so the body
   absorbs the cut and the tags always survive.
-- **Image**: a 1080×1350 JPEG carrying the whole process — a glyph strip across the top
-  showing all five stages left to right, then five tiles, each with its own icon,
-  a numbered badge, a label and a line of detail. Icons come from a 65-glyph local SVG
-  set (`templates/icons.json`); the model picks one name per stage from that fixed list
-  and anything unrecognised falls back to `gear`.
+- **Image**: a 1080×1350 infographic. A generated flat-vector illustration sits in the
+  middle, three headline statistics orbit it with leader lines, the five stages run
+  underneath as icon tiles, and a sourced quote closes the frame. Step icons come from a
+  65-glyph local SVG set (`templates/icons.json`); the model picks one name per stage from
+  that fixed list and anything unrecognised falls back to `gear`.
+
+## The illustration
+
+`src/illustrate.py` asks an image provider for one transparent PNG per post and composites
+it into the palette of the day. The style prompt is locked and the palette names are taken
+from `render.ACCENTS[theme]`, so a month of posts still reads as one account rather than a
+stock bin. The prompt forbids text outright — image models render garbled letters and
+nothing here needs them.
+
+Any OpenAI-compatible `/images/generations` endpoint works: point `IMAGE_API_BASE` at
+OpenAI, or at a gateway that speaks the same shape. Set `IMAGE_TRANSPARENT=0` for providers
+that reject the `background` flag.
+
+**Generation is never fatal.** If the key is missing, the provider is down, or the request
+times out after two retries, the run logs it and renders the icon-only frame instead, where
+the statistics become a row of cards. The post still goes out.
+
+Cost is one image per day. Skip it with `--no-art` while iterating on layout or text.
 
 ## Flow
 
 ```
 cron 07:00 UTC
   └─ generate.py   Claude + web_search → brief → JSON (title, hook, 5 steps + icons,
+     │                                                 3 stats, quote, art brief,
      │                                                 body, x_text, tags, sources)
+     ├─ illustrate.py  art brief + palette → image provider → transparent PNG (fail-soft)
      └─ dedupe     data/used_topics.json, slug match
         └─ render.py    templates/template.html → Playwright → out/YYYYMMDD-slug.jpg
            └─ storage.py  → R2/S3 → public https URL (IG requires image_url, not upload)
@@ -99,8 +119,11 @@ washes are `position: fixed` precisely so they stay out of that measurement.
 Override the rotation when testing:
 
 ```python
-render.render(data, "out/test.jpg", theme=3, layout="cards")
+render.render(data, "out/test.jpg", theme=3, layout="cards", art=png_bytes)
 ```
+
+Four layout paths are covered and were each rendered and checked: illustration present,
+illustration missing, quote missing, and only two statistics.
 
 ## Failure modes
 
@@ -112,6 +135,8 @@ render.render(data, "out/test.jpg", theme=3, layout="cards")
 | `(#190) token expired` | run *refresh-meta-token*; it needs `REPO_PAT` to write the secret back |
 | X 403 on media | free tier lost media access — this is the one line item that may need a paid plan |
 | JSON parse failure | handled: the format call is prefilled with `{` and retried 3× |
+| Frame has no illustration | `IMAGE_API_KEY` unset or the provider failed — check the `[art]` line in the run log |
+| Illustration has garbled text in it | the model ignored the no-text instruction; rerun, or lower `IMAGE_SIZE` |
 
 ## Known unknowns
 
