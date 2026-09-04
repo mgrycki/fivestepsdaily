@@ -12,6 +12,10 @@ on:
       targets:
         description: "Comma list of networks"
         default: "facebook,instagram,x"
+      reel:
+        description: "Also render and publish a reel via HeyGen"
+        type: boolean
+        default: false
 
 permissions:
   contents: write             # needed to commit data/used_topics.json back
@@ -83,3 +87,71 @@ jobs:
           git add data/used_topics.json
           git commit -m "chore: record published topic"
           git push
+
+  reel:
+    needs: post
+    if: >-
+      always() && needs.post.result == 'success' &&
+      (inputs.reel || (github.event_name == 'schedule' && vars.REELS_ENABLED == 'true'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45          # HeyGen renders at roughly 5-10x the reel length
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Pull today's topic from the post job
+        uses: actions/download-artifact@v4
+        with:
+          name: post-${{ github.run_id }}
+          path: out/
+
+      - name: Render and publish reel
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
+          HEYGEN_API_KEY: ${{ secrets.HEYGEN_API_KEY }}
+          HEYGEN_VOICE_ID: ${{ vars.HEYGEN_VOICE_ID }}
+          HEYGEN_STYLE_ID: ${{ vars.HEYGEN_STYLE_ID }}
+          HEYGEN_BRAND_KIT_ID: ${{ vars.HEYGEN_BRAND_KIT_ID }}
+          REEL_LANGUAGE: ${{ vars.REEL_LANGUAGE }}
+          REEL_SECONDS: ${{ vars.REEL_SECONDS }}
+          REEL_FACELESS: ${{ vars.REEL_FACELESS }}
+          REEL_TARGETS: ${{ vars.REEL_TARGETS }}
+          GRAPH_API_VERSION: ${{ vars.GRAPH_API_VERSION }}
+          PAGE_ID: ${{ secrets.PAGE_ID }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          PAGE_ACCESS_TOKEN: ${{ secrets.PAGE_ACCESS_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_PRIVACY: ${{ vars.YT_PRIVACY }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          X_CHAR_LIMIT: ${{ vars.X_CHAR_LIMIT }}
+          S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
+          S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          S3_REGION: ${{ vars.S3_REGION }}
+          PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
+        run: |
+          python -m src.shorts.main \
+            ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Upload reel
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ github.run_id }}
+          path: |
+            out/reel-*.mp4
+            out/reel.json
+          retention-days: 14

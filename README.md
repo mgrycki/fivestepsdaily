@@ -55,6 +55,40 @@ cron 07:00 UTC
                  └─ commit used_topics.json
 ```
 
+## Reels
+
+Same topic, second format. After the image post, an optional job hands the day's brief
+(title, hook, five stages, statistics, quote) to **HeyGen Video Agent** and gets back a
+finished vertical reel: script, voice, b-roll, captions, music -- nothing is assembled here.
+
+```
+post job → out/payload.json
+  └─ src/shorts/heygen.py   brief → POST /v3/video-agents → poll session → poll video → MP4
+     └─ storage.py           → public URL
+        ├─ Instagram Reels   /media (REELS) → poll → /media_publish
+        ├─ Facebook Page     /videos
+        ├─ YouTube Shorts    Data API v3 resumable upload, "#Shorts" in the title
+        └─ X                 chunked media_upload + tweet
+```
+
+The prompt is built by `heygen.build_prompt()` from the brief and says: use only these
+facts, no invented numbers or quotes, portrait, faceless voice-over by default. Print it
+without spending anything:
+
+```bash
+python -m src.shorts.main --prompt-only
+```
+
+Config in `.env.example` under *Reels*. `REEL_LANGUAGE` sets both narration and on-screen
+text. `REEL_FACELESS=0` puts a presenter on screen; pair it with `HEYGEN_AVATAR_ID`.
+
+Cost: HeyGen bills the Video Agent per second of output -- roughly $2 per 60 s reel at
+2026 list price. Render takes 5-10x the reel length; the job budgets 45 minutes.
+
+Enable it on the schedule with the repo variable `REELS_ENABLED=true`, or tick *reel* on a
+manual run. YouTube needs a one-time OAuth: `python scripts/youtube_auth.py client_secret.json`
+prints the three `YT_*` secrets.
+
 ## Setup
 
 1. **Meta.** Instagram account must be Business/Creator and linked to a Facebook Page.
@@ -74,7 +108,8 @@ cron 07:00 UTC
    `ANTHROPIC_API_KEY`, `PAGE_ID`, `IG_USER_ID`, `PAGE_ACCESS_TOKEN`,
    `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`,
    `S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
-   `PUBLIC_BASE_URL`, `META_APP_ID`, `META_APP_SECRET`, `REPO_PAT`.
+   `PUBLIC_BASE_URL`, `META_APP_ID`, `META_APP_SECRET`, `REPO_PAT`,
+   and for reels `HEYGEN_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
    Variables (non-secret): `GRAPH_API_VERSION`, `S3_REGION`, `ANTHROPIC_MODEL`, `BRAND_HANDLE`.
 7. **Dry run first.** Actions → *daily-post* → Run workflow with `dry_run: true`.
    Download the `post-*` artifact, look at the JPEG and the caption. Only then let the cron run.
@@ -137,6 +172,9 @@ illustration missing, quote missing, and only two statistics.
 | JSON parse failure | handled: the format call is prefilled with `{` and retried 3× |
 | Frame has no illustration | `IMAGE_API_KEY` unset or the provider failed — check the `[art]` line in the run log |
 | Illustration has garbled text in it | the model ignored the no-text instruction; rerun, or lower `IMAGE_SIZE` |
+| Reel job: "waiting for input" | HeyGen found the prompt ambiguous; tighten `REEL_*` or add `HEYGEN_STYLE_ID` |
+| Reel job times out | raise `HEYGEN_TIMEOUT` and the job's `timeout-minutes` together |
+| YouTube 403 `quotaExceeded` | default Data API quota is 10 000 units/day, one upload costs ~1 600 |
 
 ## Known unknowns
 
