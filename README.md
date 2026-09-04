@@ -39,12 +39,16 @@ Cost is one image per day. Skip it with `--no-art` while iterating on layout or 
 
 ## Flow
 
+No Anthropic API key anywhere. The thinking happens in a **Claude Code cloud routine** billed
+to the subscription; the repo only renders and publishes.
+
 ```
-cron 07:00 UTC
-  └─ generate.py   Claude + web_search → brief → JSON (title, hook, 5 steps + icons,
-     │                                                 3 stats, quote, art brief,
-     │                                                 body, x_text, tags, sources)
-     ├─ illustrate.py  art brief + palette → image provider → transparent PNG (fail-soft)
+Claude routine, daily 07:00 UTC (claude.ai/code/routines)
+  └─ web research → data/queue/YYYY-MM-DD.json → validate → commit + push to main
+     └─ GitHub Actions fires on the push (no cron in the workflow)
+        └─ src/main.py --from-payload data/queue/<file>.json
+           ├─ generate.validate + dedupe against data/used_topics.json
+           ├─ illustrate.py  art brief + palette → image provider → transparent PNG (fail-soft)
      └─ dedupe     data/used_topics.json, slug match
         └─ render.py    templates/template.html → Playwright → out/YYYYMMDD-slug.jpg
            └─ storage.py  → R2/S3 → public https URL (IG requires image_url, not upload)
@@ -105,14 +109,18 @@ prints the three `YT_*` secrets.
    mandatory: media upload does not work with app-only OAuth 2.
 5. **Bucket.** Cloudflare R2 or S3 with public read, mapped to a domain → `PUBLIC_BASE_URL`.
 6. **Secrets.** Settings → Secrets and variables → Actions:
-   `ANTHROPIC_API_KEY`, `PAGE_ID`, `IG_USER_ID`, `PAGE_ACCESS_TOKEN`,
+   `PAGE_ID`, `IG_USER_ID`, `PAGE_ACCESS_TOKEN`,
    `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`,
    `S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
    `PUBLIC_BASE_URL`, `META_APP_ID`, `META_APP_SECRET`, `REPO_PAT`,
    and for reels `HEYGEN_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
    Variables (non-secret): `GRAPH_API_VERSION`, `S3_REGION`, `ANTHROPIC_MODEL`, `BRAND_HANDLE`.
-7. **Dry run first.** Actions → *daily-post* → Run workflow with `dry_run: true`.
-   Download the `post-*` artifact, look at the JPEG and the caption. Only then let the cron run.
+7. **Dry run first.** Actions → *daily-post* → Run workflow with `dry_run: true` and a payload
+   path (or leave empty for the newest in `data/queue`). Download the `post-*` artifact, look
+   at the JPEG and the caption. Only then enable the routine.
+
+The payload contract lives in `data/queue/README.md`. `generate.generate()` (the API path)
+is still there for local use with `ANTHROPIC_API_KEY`, but nothing in CI calls it.
 
 ## Local
 
@@ -121,7 +129,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python -m playwright install chromium
 cp .env.example .env    # fill it in
-python -m src.main --dry-run
+python -m src.main --from-payload data/queue/2026-09-05.json --dry-run --no-art
 ```
 
 Render only, no API calls:

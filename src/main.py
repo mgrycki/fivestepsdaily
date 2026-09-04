@@ -31,18 +31,31 @@ def main() -> int:
                     help="how many topics to try before giving up on dedupe")
     ap.add_argument("--no-art", action="store_true",
                     help="skip illustration generation (no image-provider spend)")
+    ap.add_argument("--from-payload", default="",
+                    help="path to a ready payload JSON (written by the Claude routine); "
+                         "skips research and needs no ANTHROPIC_API_KEY")
     args = ap.parse_args()
     targets = [t.strip().lower() for t in args.targets.split(",") if t.strip()]
 
     used = generate.load_used()
     data = None
-    for attempt in range(1, args.attempts + 1):
-        candidate = generate.generate()
-        if generate.is_duplicate(candidate, used):
-            print(f"[dedupe] '{candidate['title']}' already used (attempt {attempt})", file=sys.stderr)
-            continue
-        data = candidate
-        break
+    if args.from_payload:
+        with open(args.from_payload, encoding="utf-8") as f:
+            raw = json.load(f)
+        # Same validator the API path uses, so a hand-written payload gets the same guarantees.
+        data = generate.validate(raw.get("data", raw))
+        if generate.is_duplicate(data, used):
+            print(f"[fatal] payload topic '{data['title']}' already used", file=sys.stderr)
+            return 2
+        print(f"[topic] from payload: '{data['title']}'")
+    else:
+        for attempt in range(1, args.attempts + 1):
+            candidate = generate.generate()
+            if generate.is_duplicate(candidate, used):
+                print(f"[dedupe] '{candidate['title']}' already used (attempt {attempt})", file=sys.stderr)
+                continue
+            data = candidate
+            break
     if data is None:
         print("[fatal] only duplicates after all attempts", file=sys.stderr)
         return 2

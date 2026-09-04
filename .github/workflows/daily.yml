@@ -1,10 +1,14 @@
 name: daily-post
 
 on:
-  schedule:
-    - cron: "0 7 * * *"        # 07:00 UTC = 09:00 PL (summer), 08:00 PL (winter)
+  push:
+    branches: [main]
+    paths: ["data/queue/*.json"]   # the Claude routine drops today's payload here
   workflow_dispatch:
     inputs:
+      payload:
+        description: "Path to a payload JSON (empty = newest in data/queue)"
+        default: ""
       dry_run:
         description: "Generate and render only, publish nothing"
         type: boolean
@@ -40,10 +44,17 @@ jobs:
 
       - run: python -m playwright install --with-deps chromium
 
+      - name: Pick payload
+        id: pick
+        run: |
+          P="${{ inputs.payload }}"
+          if [ -z "$P" ]; then P=$(ls -1 data/queue/*.json 2>/dev/null | sort | tail -n1); fi
+          if [ -z "$P" ]; then echo "no payload in data/queue"; exit 1; fi
+          echo "path=$P" >> "$GITHUB_OUTPUT"
+          echo "using $P"
+
       - name: Run publisher
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
           GRAPH_API_VERSION: ${{ vars.GRAPH_API_VERSION }}
           PAGE_ID: ${{ secrets.PAGE_ID }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -65,6 +76,7 @@ jobs:
           BRAND_HANDLE: ${{ vars.BRAND_HANDLE }}
         run: |
           python -m src.main \
+            --from-payload "${{ steps.pick.outputs.path }}" \
             ${{ inputs.dry_run && '--dry-run' || '' }} \
             --targets "${{ inputs.targets || 'facebook,instagram,x' }}"
 
@@ -92,7 +104,7 @@ jobs:
     needs: post
     if: >-
       always() && needs.post.result == 'success' &&
-      (inputs.reel || (github.event_name == 'schedule' && vars.REELS_ENABLED == 'true'))
+      (inputs.reel || (github.event_name == 'push' && vars.REELS_ENABLED == 'true'))
     runs-on: ubuntu-latest
     timeout-minutes: 45          # HeyGen renders at roughly 5-10x the reel length
     steps:
@@ -113,8 +125,6 @@ jobs:
 
       - name: Render and publish reel
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
           HEYGEN_API_KEY: ${{ secrets.HEYGEN_API_KEY }}
           HEYGEN_VOICE_ID: ${{ vars.HEYGEN_VOICE_ID }}
           HEYGEN_STYLE_ID: ${{ vars.HEYGEN_STYLE_ID }}
@@ -144,6 +154,7 @@ jobs:
           PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
         run: |
           python -m src.shorts.main \
+            --from-payload out/payload.json \
             ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: Upload reel

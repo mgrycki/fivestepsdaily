@@ -4,8 +4,6 @@ import os
 import re
 import unicodedata
 
-import anthropic
-
 from . import config
 
 ICON_NAMES = sorted(json.load(open(os.path.join(config.ROOT, "templates", "icons.json"))).keys())
@@ -139,6 +137,7 @@ def validate(d: dict) -> dict:
 
 
 def generate(retries: int = 3) -> dict:
+    import anthropic  # only the API path needs it; the routine path never imports this
     client = anthropic.Anthropic(api_key=config.req("ANTHROPIC_API_KEY"))
     used = load_used()
     used_titles = [u["title"] for u in used][-80:]
