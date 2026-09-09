@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime, timezone
 
-from . import config, generate, illustrate, limits, render, storage
+from . import config, costs, disclosure, generate, illustrate, limits, notify, render, storage
 from .publishers import facebook, instagram
 from .publishers import x as xpub
 
@@ -15,9 +15,9 @@ def build_captions(data: dict) -> dict:
     body = f"{data['title']}\n\n{data['body']}"
     x_limit = int(config.opt("X_CHAR_LIMIT", str(limits.X_LIMIT)))
     return {
-        "facebook": limits.for_facebook(body, data["hashtags"]),
-        "instagram": limits.for_instagram(body, data["hashtags"]),
-        "x": limits.for_x(data["x_text"], x_limit),
+        "facebook": limits.for_facebook(body, data["hashtags"], suffix=disclosure.CAPTION),
+        "instagram": limits.for_instagram(body, data["hashtags"], suffix=disclosure.CAPTION),
+        "x": limits.for_x(data["x_text"], x_limit, suffix=disclosure.X_TAG),
     }
 
 
@@ -66,12 +66,15 @@ def main() -> int:
 
     theme, _ = render.rotation(data["title"])
     art = None
-    if not args.no_art:
+    if not args.no_art and not args.dry_run and costs.guard(costs.PRICING["image"], "illustration"):
         # Palette-matched so the illustration belongs to today's frame, not to a stock set.
         art = illustrate.generate(data, *render.ACCENTS[theme])
         if art:
+            costs.record("image", 1, run=f"{stamp}-{slug}")
             with open(os.path.join(config.OUT_DIR, f"{stamp}-{slug}-art.png"), "wb") as f:
                 f.write(art)
+    elif not args.no_art and args.dry_run:
+        print("[art] dry run, not spending on an illustration (icon-only frame)")
     print(f"[art] {'generated' if art else 'none, icon-only frame'}")
 
     render.render(data, local, handle=config.opt("BRAND_HANDLE", ""), art=art)
@@ -121,6 +124,8 @@ def main() -> int:
         generate.save_used(used, data)
         print(f"[used] recorded '{data['title']}'")
 
+    notify.summary("post", data["title"], results, failures)
+    print(f"[budget] ${costs.month_spend():.2f} of ${costs.budget():.2f} used this month")
     return 1 if failures else 0
 
 

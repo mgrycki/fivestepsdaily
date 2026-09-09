@@ -93,6 +93,22 @@ Enable it on the schedule with the repo variable `REELS_ENABLED=true`, or tick *
 manual run. YouTube needs a one-time OAuth: `python scripts/youtube_auth.py client_secret.json`
 prints the three `YT_*` secrets.
 
+## Guard rails (ported from ShortFactory)
+
+- **AI disclosure is mandatory.** Every caption ends with a disclosure line, X gets a short
+  tag, and the YouTube upload sets `containsSyntheticMedia`. Art. 50 AI Act plus the
+  YouTube and Meta policies. It lives in `src/disclosure.py`; do not add a path around it.
+- **Budget guard.** Every paid call appends a line to `data/costs.jsonl`, which the workflow
+  commits back so the ledger survives ephemeral runners. A run refuses to spend once the
+  month's total would pass `MONTHLY_BUDGET_USD` (default 15). The image step degrades to
+  the icon-only frame; the reel job exits 3 before calling HeyGen.
+- **Post-publish ping.** Set `NTFY_TOPIC` (ntfy.sh, no account) or `SLACK_WEBHOOK_URL` to get
+  the post ids, or the failures, on your phone. Fail-soft: a dead notifier never fails a run.
+
+What was NOT ported, on purpose: the manual approval gate (this pipeline is fully automatic
+by decision), the ffmpeg montage (HeyGen delivers finished reels), the SQLite resume store
+(runners are ephemeral; the queue file plus `used_topics.json` carry the state).
+
 ## Setup
 
 1. **Meta.** Instagram account must be Business/Creator and linked to a Facebook Page.

@@ -74,6 +74,9 @@ jobs:
           S3_REGION: ${{ vars.S3_REGION }}
           PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
           BRAND_HANDLE: ${{ vars.BRAND_HANDLE }}
+          MONTHLY_BUDGET_USD: ${{ vars.MONTHLY_BUDGET_USD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           python -m src.main \
             --from-payload "${{ steps.pick.outputs.path }}" \
@@ -88,16 +91,15 @@ jobs:
           path: out/
           retention-days: 14
 
-      - name: Commit used topics
-        if: success() && !inputs.dry_run
+      - name: Commit used topics and cost ledger
+        if: always() && !inputs.dry_run
         run: |
-          if git diff --quiet -- data/used_topics.json; then
-            echo "no change"; exit 0
-          fi
+          git add data/used_topics.json data/costs.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/used_topics.json
-          git commit -m "chore: record published topic"
+          git commit -m "chore: record published topic and spend"
+          git pull --rebase -q origin main
           git push
 
   reel:
@@ -152,10 +154,25 @@ jobs:
           S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_ACCESS_KEY }}
           S3_REGION: ${{ vars.S3_REGION }}
           PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
+          MONTHLY_BUDGET_USD: ${{ vars.MONTHLY_BUDGET_USD }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
+          git pull -q origin main || true
           python -m src.shorts.main \
             --from-payload out/payload.json \
             ${{ inputs.dry_run && '--dry-run' || '' }}
+
+      - name: Commit cost ledger
+        if: always() && !inputs.dry_run
+        run: |
+          git add data/costs.jsonl 2>/dev/null || true
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: record reel spend"
+          git pull --rebase -q origin main
+          git push
 
       - name: Upload reel
         if: always()

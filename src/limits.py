@@ -29,24 +29,34 @@ def _trim_to(text: str, budget: int, weighted: bool = False) -> str:
     return (out.rstrip(" ,;:-") + "…") if out else ""
 
 
-def compose(body: str, hashtags: list, limit: int, max_tags: int = 30) -> str:
-    """Fill the platform limit: hashtags are reserved first, the body absorbs the trim."""
+def compose(body: str, hashtags: list, limit: int, max_tags: int = 30, suffix: str = "") -> str:
+    """Fill the platform limit: suffix and hashtags are reserved first, the body absorbs the trim."""
     tags = [t for t in hashtags][:max_tags]
-    tail = ("\n\n" + " ".join(tags)) if tags else ""
+
+    def tail_for(tags):
+        parts = []
+        if suffix:
+            parts.append(suffix)
+        if tags:
+            parts.append(" ".join(tags))
+        return ("\n\n" + "\n\n".join(parts)) if parts else ""
+
+    tail = tail_for(tags)
     # Drop tags one at a time if even a minimal body cannot fit alongside them.
     while tags and len(tail) > limit // 2:
         tags.pop()
-        tail = ("\n\n" + " ".join(tags)) if tags else ""
+        tail = tail_for(tags)
     return _trim_to(body, limit - len(tail)) + tail
 
 
-def for_facebook(body: str, hashtags: list) -> str:
-    return compose(body, hashtags, FB_LIMIT)
+def for_facebook(body: str, hashtags: list, suffix: str = "") -> str:
+    return compose(body, hashtags, FB_LIMIT, suffix=suffix)
 
 
-def for_instagram(body: str, hashtags: list) -> str:
-    return compose(body, hashtags, IG_LIMIT, max_tags=IG_HASHTAG_MAX)
+def for_instagram(body: str, hashtags: list, suffix: str = "") -> str:
+    return compose(body, hashtags, IG_LIMIT, max_tags=IG_HASHTAG_MAX, suffix=suffix)
 
 
-def for_x(text: str, limit: int = X_LIMIT) -> str:
-    return _trim_to(text, limit, weighted=True)
+def for_x(text: str, limit: int = X_LIMIT, suffix: str = "") -> str:
+    tail = (" " + suffix) if suffix else ""
+    return _trim_to(text, limit - x_weight(tail), weighted=True) + tail

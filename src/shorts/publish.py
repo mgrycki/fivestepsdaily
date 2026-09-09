@@ -3,7 +3,7 @@ import time
 
 import requests
 
-from .. import config
+from .. import config, disclosure
 
 # ---------- Instagram Reels ----------
 
@@ -68,8 +68,7 @@ def youtube(path: str, title: str, description: str, tags: list) -> str:
     body = {
         "snippet": {"title": title[:100], "description": description[:5000],
                     "tags": [t.lstrip("#") for t in tags][:20], "categoryId": "28"},
-        "status": {"privacyStatus": config.opt("YT_PRIVACY", "public"),
-                   "selfDeclaredMadeForKids": False},
+        "status": disclosure.youtube_status(config.opt("YT_PRIVACY", "public")),
     }
     media = MediaFileUpload(path, mimetype="video/mp4", resumable=True, chunksize=8 * 1024 * 1024)
     req = yt.videos().insert(part="snippet,status", body=body, media_body=media)
