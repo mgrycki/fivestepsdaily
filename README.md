@@ -109,6 +109,19 @@ What was NOT ported, on purpose: the manual approval gate (this pipeline is full
 by decision), the ffmpeg montage (HeyGen delivers finished reels), the SQLite resume store
 (runners are ephemeral; the queue file plus `used_topics.json` carry the state).
 
+## Phase 1: posts only, $0
+
+The simplest live configuration, and the one to start with:
+
+| Variable / secret | Value | Effect |
+|---|---|---|
+| `TARGETS` (var) | `facebook,instagram` | X stays off until its API tier is confirmed |
+| `REELS_ENABLED` (var) | `false` | reel job never runs |
+| `IMAGE_API_KEY` (secret) | unset | frame renders with icons only, no image spend |
+
+Monthly cost in this phase: routine on the subscription, Actions and R2 inside free tiers,
+Meta API free. Turn on `IMAGE_API_KEY` later for illustrations (~$1-5/month), then X, then reels.
+
 ## Setup
 
 1. **Meta.** Instagram account must be Business/Creator and linked to a Facebook Page.

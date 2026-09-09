@@ -14,8 +14,8 @@ on:
         type: boolean
         default: true
       targets:
-        description: "Comma list of networks"
-        default: "facebook,instagram,x"
+        description: "Comma list of networks (empty = repo variable TARGETS)"
+        default: ""
       reel:
         description: "Also render and publish a reel via HeyGen"
         type: boolean
@@ -81,7 +81,7 @@ jobs:
           python -m src.main \
             --from-payload "${{ steps.pick.outputs.path }}" \
             ${{ inputs.dry_run && '--dry-run' || '' }} \
-            --targets "${{ inputs.targets || 'facebook,instagram,x' }}"
+            --targets "${{ inputs.targets || vars.TARGETS || 'facebook,instagram' }}"
 
       - name: Upload artefacts
         if: always()
