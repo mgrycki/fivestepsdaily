@@ -53,8 +53,14 @@ jobs:
           echo "path=$P" >> "$GITHUB_OUTPUT"
           echo "using $P"
 
+      - name: Git identity for media commits
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Run publisher
         env:
+          STORAGE: ${{ vars.STORAGE }}
           GRAPH_API_VERSION: ${{ vars.GRAPH_API_VERSION }}
           PAGE_ID: ${{ secrets.PAGE_ID }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
@@ -96,8 +102,6 @@ jobs:
         run: |
           git add data/used_topics.json data/costs.jsonl 2>/dev/null || true
           if git diff --cached --quiet; then echo "no change"; exit 0; fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: record published topic and spend"
           git pull --rebase -q origin main
           git push

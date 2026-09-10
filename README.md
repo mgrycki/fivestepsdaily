@@ -1,4 +1,4 @@
-# Publisher
+# fivestepsdaily
 
 Daily autonomous poster: Claude researches one interesting *process*, renders it into a
 1080×1350 JPEG, and publishes it to a Facebook Page, an Instagram Business account and X.
@@ -51,7 +51,8 @@ Claude routine, daily 07:00 UTC (claude.ai/code/routines)
            ├─ illustrate.py  art brief + palette → image provider → transparent PNG (fail-soft)
      └─ dedupe     data/used_topics.json, slug match
         └─ render.py    templates/template.html → Playwright → out/YYYYMMDD-slug.jpg
-           └─ storage.py  → R2/S3 → public https URL (IG requires image_url, not upload)
+           └─ storage.py  → commit to media/ → raw.githubusercontent.com URL
+                            (IG requires image_url, not upload; the public repo is the CDN)
               └─ limits.py    one body → three clamped captions
               ├─ facebook.py    POST /{page-id}/photos
               ├─ instagram.py   POST /media → poll status → POST /media_publish
@@ -118,9 +119,11 @@ The simplest live configuration, and the one to start with:
 | `TARGETS` (var) | `facebook,instagram` | X stays off until its API tier is confirmed |
 | `REELS_ENABLED` (var) | `false` | reel job never runs |
 | `IMAGE_API_KEY` (secret) | unset | frame renders with icons only, no image spend |
+| `STORAGE` (var) | unset (`github`) | images served from this repo, no bucket |
 
-Monthly cost in this phase: routine on the subscription, Actions and R2 inside free tiers,
-Meta API free. Turn on `IMAGE_API_KEY` later for illustrations (~$1-5/month), then X, then reels.
+Monthly cost in this phase: routine on the subscription, Actions inside the free tier,
+image hosting on GitHub, Meta API free. Three secrets in total: `PAGE_ID`, `IG_USER_ID`,
+`PAGE_ACCESS_TOKEN`. Turn on `IMAGE_API_KEY` later for illustrations (~$1-5/month), then X, then reels.
 
 ## Setup
 
@@ -136,12 +139,13 @@ Meta API free. Turn on `IMAGE_API_KEY` later for illustrations (~$1-5/month), th
    ```
 4. **X.** Developer Portal project → OAuth 1.0a keys, **Read and Write**. OAuth 1.0a is
    mandatory: media upload does not work with app-only OAuth 2.
-5. **Bucket.** Cloudflare R2 or S3 with public read, mapped to a domain → `PUBLIC_BASE_URL`.
+5. **Image hosting.** None to set up. This repo is public; each JPEG is committed to `media/`
+   and served from `raw.githubusercontent.com`. `STORAGE=s3` switches to R2/S3 if you ever
+   need a real CDN.
 6. **Secrets.** Settings → Secrets and variables → Actions:
    `PAGE_ID`, `IG_USER_ID`, `PAGE_ACCESS_TOKEN`,
-   `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`,
-   `S3_ENDPOINT_URL`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`,
-   `PUBLIC_BASE_URL`, `META_APP_ID`, `META_APP_SECRET`, `REPO_PAT`,
+   optionally `X_CONSUMER_KEY`, `X_CONSUMER_SECRET`, `X_ACCESS_TOKEN`, `X_ACCESS_TOKEN_SECRET`,
+   `META_APP_ID`, `META_APP_SECRET`, `REPO_PAT`,
    and for reels `HEYGEN_API_KEY`, `YT_CLIENT_ID`, `YT_CLIENT_SECRET`, `YT_REFRESH_TOKEN`.
    Variables (non-secret): `GRAPH_API_VERSION`, `S3_REGION`, `ANTHROPIC_MODEL`, `BRAND_HANDLE`.
 7. **Dry run first.** Actions → *daily-post* → Run workflow with `dry_run: true` and a payload
