@@ -16,6 +16,7 @@ Schema (validated by `src/generate.py:validate` — a file that fails validation
   ],
   "stats": [{"value": "max 7 chars, e.g. 98.5%", "label": "max 45 chars, what it measures"}],
   "quote": {"text": "max 110 chars, verbatim from a source", "who": "name, role or institution"},
+  "illustration": "a file name (without extension) from assets/illustrations, or null",
   "art": "one sentence: a single concrete illustration subject, no text in the scene",
   "body": "900-2000 chars, the post text itself, plain, blank lines between paragraphs, no hashtags, no links",
   "x_text": "max 230 chars, standalone",
@@ -23,6 +24,10 @@ Schema (validated by `src/generate.py:validate` — a file that fails validation
   "sources": ["https://..."]
 }
 ```
+
+`illustration` is preferred: it is free and on-style. List the choices with
+`ls assets/illustrations`. `art` is only used when no library image fits AND an image API key
+is configured; otherwise the frame renders icon-only.
 
 Rules the validator enforces: exactly 5 steps; 2-3 stats; body >= 900 chars; `quote` may be
 `null` and is dropped if it lacks text or attribution; unknown icons fall back to `gear`.

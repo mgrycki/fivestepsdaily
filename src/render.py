@@ -30,7 +30,7 @@ def rotation(seed: str) -> tuple:
 
 
 def render(data: dict, out_path: str, handle: str = "", art: bytes = None,
-           theme: int = None, layout: str = None) -> str:
+           theme: int = None, layout: str = None, art_card: bool = False) -> str:
     auto_theme, auto_layout = rotation(data["title"])
     theme = auto_theme if theme is None else theme
     layout = auto_layout if layout is None else layout
@@ -39,7 +39,8 @@ def render(data: dict, out_path: str, handle: str = "", art: bytes = None,
     # Everything has to travel inline.
     art_uri = ""
     if art:
-        art_uri = "data:image/png;base64," + base64.b64encode(art).decode()
+        mime = "image/jpeg" if art[:3] == b"\xff\xd8\xff" else "image/png"
+        art_uri = f"data:{mime};base64," + base64.b64encode(art).decode()
 
     html = open(config.TEMPLATE, encoding="utf-8").read()
     icons = open(config.ICONS, encoding="utf-8").read()
@@ -50,6 +51,7 @@ def render(data: dict, out_path: str, handle: str = "", art: bytes = None,
         .replace("{{LAYOUT}}", json.dumps(layout))
         .replace("{{HANDLE}}", json.dumps(handle))
         .replace("{{ART}}", json.dumps(art_uri))
+        .replace("{{ART_CARD}}", "true" if art_card else "false")
     )
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
 

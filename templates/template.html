@@ -66,6 +66,9 @@
   .hero { position:relative; height:398px; margin:20px 0 22px; flex:none; }
   .art { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
          width:430px; height:398px; object-fit:contain; }
+  /* Library images come on plain white: give them a white card so the edge is a design choice. */
+  .art.card { width:380px; height:380px; background:#fff; border-radius:34px; padding:18px;
+              box-shadow:0 22px 44px -22px rgba(16,24,40,.45); }
 
   .stat { position:absolute; width:258px; }
   .stat .v { font-size:56px; font-weight:800; line-height:1; letter-spacing:-.03em;
@@ -166,6 +169,7 @@
   const LAYOUT = {{LAYOUT}};
   const HANDLE = {{HANDLE}};
   const ART    = {{ART}};          // data: URI, or "" when generation failed
+  const ART_CARD = {{ART_CARD}};   // true for library images on a white background
   const FALLBACK = "gear";
 
   const glyph = name => '<svg viewBox="0 0 24 24">' + (ICONS[name] || ICONS[FALLBACK]) + '</svg>';
@@ -178,7 +182,8 @@
 
   const hero = document.getElementById("hero");
   const art  = document.getElementById("art");
-  if (ART) { art.src = ART; } else { hero.classList.add("no-art"); }
+  if (ART) { art.src = ART; if (ART_CARD) art.classList.add("card"); }
+  else { hero.classList.add("no-art"); }
 
   const SLOTS = ["a", "b", "c"];
   (DATA.stats || []).slice(0, 3).forEach((st, i) => {

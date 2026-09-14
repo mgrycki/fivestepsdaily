@@ -65,8 +65,14 @@ def main() -> int:
     local = os.path.join(config.OUT_DIR, f"{stamp}-{slug}.jpg")
 
     theme, _ = render.rotation(data["title"])
-    art = None
-    if not args.no_art and not args.dry_run and costs.guard(costs.PRICING["image"], "illustration"):
+    art, art_card = None, False
+    lib = generate.library()
+    if data.get("illustration") in lib:
+        with open(lib[data["illustration"]], "rb") as f:
+            art = f.read()
+        art_card = True
+        print(f"[art] library: {data['illustration']}")
+    elif not args.no_art and not args.dry_run and costs.guard(costs.PRICING["image"], "illustration"):
         # Palette-matched so the illustration belongs to today's frame, not to a stock set.
         art = illustrate.generate(data, *render.ACCENTS[theme])
         if art:
@@ -75,9 +81,10 @@ def main() -> int:
                 f.write(art)
     elif not args.no_art and args.dry_run:
         print("[art] dry run, not spending on an illustration (icon-only frame)")
-    print(f"[art] {'generated' if art else 'none, icon-only frame'}")
+    if art is None:
+        print("[art] none, icon-only frame")
 
-    render.render(data, local, handle=config.opt("BRAND_HANDLE", ""), art=art)
+    render.render(data, local, handle=config.opt("BRAND_HANDLE", ""), art=art, art_card=art_card)
     print(f"[render] {local} ({os.path.getsize(local)} bytes)")
 
     caps = build_captions(data)

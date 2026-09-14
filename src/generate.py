@@ -8,6 +8,22 @@ from . import config
 
 ICON_NAMES = sorted(json.load(open(os.path.join(config.ROOT, "templates", "icons.json"))).keys())
 
+ILLUSTRATION_DIR = os.path.join(config.ROOT, "assets", "illustrations")
+
+
+def library() -> dict:
+    """name -> path for every image in assets/illustrations (generated once in Midjourney)."""
+    out = {}
+    if os.path.isdir(ILLUSTRATION_DIR):
+        for f in sorted(os.listdir(ILLUSTRATION_DIR)):
+            stem, ext = os.path.splitext(f)
+            if ext.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+                out[stem.lower()] = os.path.join(ILLUSTRATION_DIR, f)
+    return out
+
+
+ILLUSTRATIONS = sorted(library().keys())
+
 RESEARCH_PROMPT = """Find ONE genuinely interesting *process* worth explaining in 5 steps.
 Any field: AI, medicine, IT, biology, logistics, materials, energy, space.
 
@@ -46,6 +62,7 @@ Return ONLY a JSON object, no prose, no markdown fences, with exactly this shape
   ],
   "stats": [{{"value": "98.5%", "label": "max 45 chars, what the number measures"}}],
   "quote": {{"text": "max 110 chars, verbatim from a source", "who": "name, role or institution"}},
+  "illustration": "one name from the illustration library that fits the process best, or null",
   "art": "one sentence describing a single illustration subject for this process. Concrete and "
          "visual, e.g. 'a laboratory bioreactor vessel with coiled tubing and floating molecule "
          "shapes around it'. No text or labels in the scene.",
@@ -68,6 +85,8 @@ Rules:
 - 6-12 hashtags, each starting with #, lowercase, no spaces inside.
 - "icon" MUST be chosen from this list, pick the closest match for that stage:
 {icons}
+- "illustration" MUST be one of these library names or null:
+{illustrations}
 """
 
 BODY_MIN = 900
@@ -129,6 +148,9 @@ def validate(d: dict) -> dict:
         d["quote"] = None
 
     d["art"] = str(d.get("art", "")).strip()
+    # A library pick is free and on-style; anything not in the library is dropped, not guessed.
+    ill = str(d.get("illustration") or "").strip().lower()
+    d["illustration"] = ill if ill in library() else None
     d["hashtags"] = [
         re.sub(r"\s+", "", h if h.startswith("#") else "#" + h) for h in d["hashtags"]
     ][:12]
@@ -153,7 +175,8 @@ def generate(retries: int = 3) -> dict:
         raise RuntimeError("research call returned no text")
 
     prompt = FORMAT_PROMPT.format(
-        brief=brief, icons=", ".join(ICON_NAMES), body_min=BODY_MIN, body_max=BODY_MAX
+        brief=brief, icons=", ".join(ICON_NAMES), body_min=BODY_MIN, body_max=BODY_MAX,
+        illustrations=", ".join(ILLUSTRATIONS) or "(library empty)",
     )
     last_err = None
     for _ in range(retries):
